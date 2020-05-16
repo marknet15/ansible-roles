@@ -1,0 +1,53 @@
+---
+- name: Apt Upgrade Hosts
+  hosts: all
+  serial: "{{ serial_hosts | default(4) }}"
+  max_fail_percentage: 25
+  tasks:
+    - name: Update apt-cache
+      apt:
+        update_cache: yes
+      become: yes
+
+    - name: Run apt dist-upgrade
+      apt:
+        upgrade: dist
+        autoclean: yes
+      become: yes
+      register: output
+
+    - name: Show apt dist-upgrade results
+      debug:
+        msg: "{{ output.stdout_lines }}"
+
+    # Only reboot the host if the reboot_host var is set to true
+    - name: Reboot host
+      shell: sleep 2 && shutdown -r now
+      async: 1
+      poll: 0
+      become: yes
+      ignore_errors: true
+      when: reboot_enabled|default(false)|bool == true
+
+    - name: Wait for host to boot up
+      local_action: wait_for host={{ ansible_host }} state=started delay=1 timeout=120
+      when: reboot_enabled|default(false)|bool == true
+
+    - name: Check host uptime
+      shell: uptime
+      register: output
+
+    - name: Show host uptime
+      debug:
+        msg: "{{ output.stdout_lines }}"
+
+    # Clean old packages from hosts
+    - name: Remove un-used packages
+      apt:
+        autoremove: yes
+      become: yes
+      register: output
+
+    - name: Show package cleaning results
+      debug:
+        msg: "{{ output.stdout_lines }}"

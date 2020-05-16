@@ -1,0 +1,44 @@
+---
+- name: "Check if i2c support is enabled"
+  shell: "raspi-config nonint get_i2c"
+  become: yes
+  register: i2c_check
+
+- name: "Enable i2c support"
+  shell: "raspi-config nonint do_i2c 0"
+  become: yes
+  when: i2c_check.stdout == "1"
+
+- name: "Reboot after enabling i2c support"
+  reboot:
+    msg: "Rebooting to apply i2c settings"
+  become: yes
+  when: i2c_check.stdout == "1"
+
+- name: "Install required i2c package"
+  apt:
+    name: i2c-tools
+  become: yes
+
+- name: "Install k3s-status-lcd package"
+  pip:
+    name: k3s-status-lcd
+    version: "{{ version | default(omit) }}"
+  become: yes
+
+- name: "Create k3s-status-lcd service"
+  template:
+    src: "k3s-status-lcd.service.j2"
+    dest: "/etc/systemd/system/k3s-status-lcd.service"
+    owner: "root"
+    group: "root"
+    mode: 0644
+  become: yes
+
+- name: Start k3s-status-lcd service
+  systemd:
+    name: k3s-status-lcd
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  become: yes

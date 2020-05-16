@@ -1,0 +1,3 @@
+---
+raspi_username: pi
+site_packages_dir: /usr/local/lib/python3.7/dist-packages

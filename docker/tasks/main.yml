@@ -1,0 +1,61 @@
+# file: roles/docker/tasks/main.yml
+---
+- name: Add Docker Apt Key
+  apt_key:
+    url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+    state: present
+
+- name: Enable Docker Apt Repo
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    state: present
+    update_cache: yes
+
+# Install set version of Docker CE so that it can be controlled
+- name: Install Docker CE
+  action: apt pkg={{ item }} state=present
+  with_items:
+    - docker-ce={{ docker_version }}
+    - python-docker
+
+- name: Create docker group (for container mgmt)
+  group:
+    name: docker
+    state: present
+
+- name: Add Ansible user to Docker group
+  user:
+    name: ansible
+    groups: docker
+    append: yes
+
+- name: Ensure service is started
+  service:
+    name: docker
+    enabled: yes
+    state: started
+
+- name: Get Docker info
+  shell: docker info
+  register: docker_info
+  changed_when: False
+
+# Test docker works as expected locally
+- name: Create Test Container
+  docker_container:
+    name: hello-world
+    state: present
+    image: hello-world
+
+- name: Get State of Test Container
+  shell: docker ps -a -f name=hello-world
+  register: status
+
+- name: Print Output of Test Container
+  debug:
+    msg: "{{ status.stdout_lines }}"
+
+- name: Remove Test Container
+  docker_container:
+    name: hello-world
+    state: absent

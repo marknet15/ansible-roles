@@ -1,0 +1,51 @@
+### Managed by Ansible ###
+server {
+	listen 80;
+	server_name {{ item.value.server_name  }};
+
+	{% if  item.value.ssl_enabled == true | default(false) | bool  %}
+	add_header Strict-Transport-Security max-age=2592000;
+	rewrite ^ https://$server_name$request_uri? permanent;
+	{% else %}
+	location / {
+		proxy_http_version        1.1;
+		proxy_set_header          Host $host;
+		proxy_set_header          X-Real-IP $remote_addr;
+		proxy_set_header          X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header          X-Forwarded-Proto $scheme;
+		proxy_set_header          Upgrade $http_upgrade;
+		proxy_set_header          Connection $connection_upgrade;
+		proxy_pass                http://{{ item.value.proxy_endpoint }};
+		proxy_read_timeout  90;
+	}
+	{% endif %}
+}
+
+{% if  item.value.ssl_enabled == true | default(false) | bool  %}
+server {
+	listen 443 ssl http2;
+	server_name {{ item.value.server_name  }};
+
+	ssl on;
+	ssl_certificate /etc/nginx/ssl/{{ item.value.ssl_cert_name }};
+	ssl_certificate_key /etc/nginx/ssl/{{ item.value.ssl_key_name }};
+	ssl_session_timeout 5m;
+	ssl_protocols TLSv1.2;
+	ssl_ciphers EECDH+CHACHA20:EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:EECDH+3DES:RSA+3DES:!MD5;
+	ssl_prefer_server_ciphers on;
+
+	access_log /var/log/nginx/other.access.log;
+
+	location / {
+		proxy_http_version        1.1;
+		proxy_set_header          Host $host;
+		proxy_set_header          X-Real-IP $remote_addr;
+		proxy_set_header          X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header          X-Forwarded-Proto $scheme;
+		proxy_set_header          Upgrade $http_upgrade;
+		proxy_set_header          Connection $connection_upgrade;
+		proxy_pass                http://{{ item.value.proxy_endpoint }};
+		proxy_read_timeout  90;
+	}
+}
+{% endif %}

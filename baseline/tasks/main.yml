@@ -1,0 +1,28 @@
+---
+- name: "Set nameserver config"
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+
+- name: "Set MOTD"
+  template:
+    src: motd.j2
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+
+- name: "Install pip packages"
+  pip:
+    name:
+      - pyyaml
+      - pyhelm
+      - grpcio
+      - openshift
+      - kubernetes-validate
+    state: present

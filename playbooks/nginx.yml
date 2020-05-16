@@ -1,0 +1,12 @@
+---
+- hosts: all
+  vars:
+    vhosts:
+      example:
+        server_name: "example.marknet15.com"
+        proxy_endpoint: "192.168.0.5:8091"
+        ssl_enabled: true
+        ssl_cert_name: marknet15.pem
+        ssl_key_name: marknet15.pem
+  roles:
+    - { role: roles/nginx, when: "ansible_os_family == 'Debian'" }

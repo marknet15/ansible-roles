@@ -1,0 +1,42 @@
+# file: roles/nginx/tasks/main.yml
+---
+# Nginx main setup
+- name: Install Nginx
+  action: apt pkg=nginx state=latest
+
+- name: Enable nginx service
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+
+- name: Ensure SSL directory exists
+  file:
+    path: /etc/nginx/ssl
+    state: directory
+
+- name: Disable default vhost
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Setup proxy config
+  template:
+    src: nginx-proxy.conf.j2
+    dest: /etc/nginx/conf.d/proxy.conf
+    owner: root
+    group: root
+  notify:
+    - reload nginx
+
+# Vhost setup
+- name: Create Vhosts
+  template:
+    src: proxy.conf.j2
+    dest: /etc/nginx/sites-enabled/{{ item.key }}.conf
+    owner: root
+    group: root
+    mode: 0640
+  with_dict: "{{ vhosts }}"
+  notify:
+    - reload nginx

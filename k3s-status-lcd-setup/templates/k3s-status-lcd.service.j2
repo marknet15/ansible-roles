@@ -1,0 +1,12 @@
+[Unit]
+Description=Raspberry pi k3s lcd status service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/k3s_status_lcd
+User={{ raspi_username }}
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

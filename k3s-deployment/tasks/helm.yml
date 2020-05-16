@@ -1,0 +1,59 @@
+---
+- name: "Create kubernetes namespace"
+  k8s:
+    definition: "{{ lookup('template', 'namespace.yaml.j2') | from_yaml }}"
+    validate:
+      fail_on_error: yes
+    state: present
+
+- name: "Template out values.yaml files"
+  template:
+    src: "values.yaml.j2"
+    dest: "/tmp/{{ chart.name }}.yaml"
+
+- name: "Run helm update"
+  command: "helm repo update"
+  run_once: yes
+  when:
+    - helm_update | default(false) | bool
+
+- name: "Check for existing helm chart"
+  command: >
+    helm get all
+    {{ chart.name }}
+    --namespace {{ namespace }}
+  register: chart_check
+  failed_when:
+    - chart_check.rc not in [0,1]
+
+- name: "Deploy helm chart to the cluster"
+  command: >
+    helm install
+    {{ chart.name }} {{ chart.source.path }}
+    --values /tmp/{{ chart.name }}.yaml
+    --namespace {{ namespace }}
+  become: yes
+  when:
+    - chart_check.rc == 1
+
+- name: "Upgrade exiting helm deployment"
+  command: >
+    helm upgrade
+    {{ chart.name }} {{ chart.source.path }}
+    --values /tmp/{{ chart.name }}.yaml
+    --namespace {{ namespace }}
+  become: yes
+  when:
+    - chart_check.rc == 0
+
+- name: "Register a DNS record with CloudFlare"
+  cloudflare_dns:
+    zone: "{{ chart.dnsZone }}"
+    type: CNAME
+    record: "{{ chart.dnsRecord }}"
+    value: "{{ chart.dnsValue }}"
+    account_email: "{{ cloudflare_username }}"
+    account_api_token: "{{ cloudflare_api_token }}"
+    state: present
+  when:
+    - dns_enabled | default(false) | bool
