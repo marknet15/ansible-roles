@@ -4,6 +4,17 @@
   serial: "{{ serial_hosts | default(4) }}"
   max_fail_percentage: 25
   tasks:
+    - name: "Send Slack notification"
+      slack:
+        token: "{{ slack_token }}"
+        msg: K3s cluster system event
+        attachments:
+          - text: Initiating apt dist upgrade of k3s cluster nodes
+            color: warning
+            title: System packages upgrade
+      delegate_to: localhost
+      run_once: yes
+
     - name: Update apt-cache
       apt:
         update_cache: yes
@@ -20,21 +31,29 @@
       debug:
         msg: "{{ output.stdout_lines }}"
 
-    # Only reboot the host if the reboot_host var is set to true
+    # Only reboot the host if the reboot_enabled var is set to true
     - name: Reboot host
-      shell: sleep 2 && shutdown -r now
+      command: sleep 2 && shutdown -r now
       async: 1
       poll: 0
       become: yes
       ignore_errors: true
-      when: reboot_enabled|default(false)|bool == true
+      when:
+        - reboot_enabled | default(false) | bool
 
-    - name: Wait for host to boot up
-      local_action: wait_for host={{ ansible_host }} state=started delay=1 timeout=120
-      when: reboot_enabled|default(false)|bool == true
+    - name: "Wait for host to boot up"
+      wait_for:
+        host: "{{ ansible_host }}"
+        search_regex: OpenSSH
+        port: 22
+        delay: 1
+        timeout: 300
+      connection: local
+      when:
+        - reboot_enabled | default(false) | bool
 
     - name: Check host uptime
-      shell: uptime
+      command: uptime
       register: output
 
     - name: Show host uptime
